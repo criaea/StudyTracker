@@ -21,7 +21,7 @@
     <!-- 5. Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- 6. Firebase SDK (Aggiornato con Auth Token Support) -->
+    <!-- 6. Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
@@ -249,8 +249,6 @@
                     return;
                 }
                 localStorage.setItem('studyTrackerUsername', username);
-                // Triggera useEffect sync
-                // Se firebase non è pronto, simula login
                 if (!firebase) setIsLoggedIn(true);
             };
 
@@ -261,9 +259,16 @@
                 localStorage.removeItem('studyTrackerUsername');
             };
 
+            const openModal = (isGoal) => {
+                setIsGoalEntry(isGoal);
+                setNewEntryDate(new Date().toISOString().split('T')[0]); // IMPORTO: Default su Oggi!
+                setIsAddModalOpen(true);
+            };
+
             const addEntry = (dateStr, isGoal = false) => {
                 if (entries.find(e => e.date === dateStr && e.isGoal === isGoal)) {
-                    if (!isGoal) alert("Esiste già una voce per questa data.");
+                    // AVVISO ESPLICITO per entrambi i casi
+                    alert(isGoal ? "Esiste già un obiettivo per questa data." : "Esiste già una voce per questa data.");
                     return;
                 }
                 setEntries(prev => [...prev, { id: generateId(), date: dateStr, chapters: 0, exercises: 0, hours: 0, isGoal: isGoal }]
@@ -331,7 +336,6 @@
             }, [validEntries]);
 
             const prediction = useMemo(() => {
-                // Fix NaN: check if numbers are valid
                 const tGoal = Number(totalGoal) || 0;
                 const tExGoal = Number(totalExercisesGoal) || 0;
                 const currentPages = Number(stats.totalPages) || 0;
@@ -340,9 +344,7 @@
                 const speedEx = Number(stats.rawExPerHour) || 0;
 
                 const remainingPages = Math.max(0, tGoal - currentPages);
-                // Calculate hours: prevent division by zero and ensure number
                 const hoursPages = speedPages > 0 ? (remainingPages / speedPages).toFixed(1) : "N/A";
-                
                 const progressPages = tGoal > 0 ? Math.min(100, (currentPages / tGoal) * 100).toFixed(1) : 0;
 
                 const remainingEx = Math.max(0, tExGoal - currentEx);
