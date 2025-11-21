@@ -3,56 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StudyFlow - Cloud Sync</title>
+    <title>StudyFlow - Profili</title>
     
-    <!-- 1. Stile (Tailwind CSS) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- 2. Motore React (Production) -->
     <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-    
-    <!-- 3. Helper Grafici -->
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
-    
-    <!-- 4. Libreria Grafici (Recharts) -->
     <script src="https://unpkg.com/recharts@2.10.3/umd/Recharts.js"></script>
-    
-    <!-- 5. Babel -->
+    <!-- Aggiornato a Babel 7+ per supportare la sintassi React moderna -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <!-- 6. Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, onSnapshot, collection } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
-
-        window.initFirebase = () => {
-            try {
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'demo-app';
-                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                
-                if (!firebaseConfig) {
-                    console.warn("Firebase config mancante. Modalità offline.");
-                    return null;
-                }
-
-                const app = initializeApp(firebaseConfig);
-                const auth = getAuth(app);
-                const db = getFirestore(app);
-                
-                return { 
-                    auth, db, appId, initialAuthToken,
-                    signInAnonymously, signInWithCustomToken, onAuthStateChanged, 
-                    doc, setDoc, onSnapshot, collection 
-                };
-            } catch (e) {
-                console.error("Errore inizializzazione Firebase:", e);
-                return null;
-            }
-        };
-    </script>
 
     <script>
         tailwind.config = {
@@ -71,18 +30,15 @@
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #0f172a; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #6366f1; width: 24px; height: 24px; -webkit-animation: spin 1s linear infinite; animation: spin 1s linear infinite; }
-        @-webkit-keyframes spin { 0% { -webkit-transform: rotate(0deg); } 100% { -webkit-transform: rotate(360deg); } }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
+        const { useState, useEffect, useMemo } = React;
         
-        // --- ICONE INTEGRATE ---
+        // --- ICONE ---
         const Icon = ({ d, className }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
                 {d}
@@ -90,46 +46,39 @@
         );
 
         const Icons = {
-            Plus: (props) => <Icon {...props} d={<><path d="M5 12h14"/><path d="M12 5v14"/></>} />,
-            Calendar: (props) => <Icon {...props} d={<><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></>} />,
-            Trash2: (props) => <Icon {...props} d={<><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></>} />,
-            TrendingUp: (props) => <Icon {...props} d={<><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></>} />,
-            Clock: (props) => <Icon {...props} d={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>} />,
-            BookOpen: (props) => <Icon {...props} d={<><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></>} />,
-            CheckCircle: (props) => <Icon {...props} d={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />,
-            Calculator: (props) => <Icon {...props} d={<><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></>} />,
-            Target: (props) => <Icon {...props} d={<><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>} />,
-            Hourglass: (props) => <Icon {...props} d={<><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></>} />,
-            Flag: (props) => <Icon {...props} d={<><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></>} />,
-            User: (props) => <Icon {...props} d={<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>} />,
-            LogOut: (props) => <Icon {...props} d={<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></>} />,
-            Cloud: (props) => <Icon {...props} d={<><path d="M17.5 19c0-1.7-1.3-3-3-3h-1.1c-.5-2.3-2.5-4-4.9-4-2.8 0-5 2.2-5 5v1h-.5C1.2 19 0 20.2 0 21.5S1.2 24 2.5 24h15c1.4 0 2.5-1.1 2.5-2.5S18.9 19 17.5 19z"/></>} />,
+            Plus: (p) => <Icon {...p} d={<><path d="M5 12h14"/><path d="M12 5v14"/></>} />,
+            Calendar: (p) => <Icon {...p} d={<><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></>} />,
+            Trash2: (p) => <Icon {...p} d={<><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></>} />,
+            TrendingUp: (p) => <Icon {...p} d={<><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></>} />,
+            Clock: (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>} />,
+            BookOpen: (p) => <Icon {...p} d={<><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></>} />,
+            CheckCircle: (p) => <Icon {...p} d={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />,
+            Calculator: (p) => <Icon {...p} d={<><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></>} />,
+            Target: (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>} />,
+            Hourglass: (p) => <Icon {...p} d={<><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></>} />,
+            Flag: (p) => <Icon {...p} d={<><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></>} />,
+            User: (p) => <Icon {...p} d={<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>} />,
+            LogOut: (p) => <Icon {...p} d={<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></>} />,
         };
 
-        // --- APP LOGIC ---
-
+        // --- RECHARTS ---
         const RechartsObj = window.Recharts || window.Recharts.default || {};
         const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = RechartsObj;
 
+        // --- UTILS ---
         const formatDate = (dateString) => {
             if (!dateString) return '';
             const options = { month: 'short', day: 'numeric' };
             return new Date(dateString).toLocaleDateString('it-IT', options);
         };
-
         const generateId = () => Math.random().toString(36).substr(2, 9);
 
+        // --- APP ---
         const App = () => {
-            // --- FIREBASE STATE ---
-            const [firebase, setFirebase] = useState(null);
-            const [user, setUser] = useState(null);
-            const [username, setUsername] = useState(() => localStorage.getItem('studyTrackerUsername') || '');
-            const [isLoggedIn, setIsLoggedIn] = useState(false);
-            const [dbLoading, setDbLoading] = useState(false);
-            const [statusMsg, setStatusMsg] = useState("");
-
-            // --- APP STATE ---
             const [view, setView] = useState('tracker');
+            const [username, setUsername] = useState('');
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+            
             const [entries, setEntries] = useState([]);
             const [totalGoal, setTotalGoal] = useState(100);
             const [totalExercisesGoal, setTotalExercisesGoal] = useState(50);
@@ -139,143 +88,81 @@
             const [newEntryDate, setNewEntryDate] = useState('');
             const [isGoalEntry, setIsGoalEntry] = useState(false);
 
-            // 1. Init Firebase & Auth
+            // Controlla se c'è un utente salvato nell'ultima sessione
             useEffect(() => {
-                const fb = window.initFirebase ? window.initFirebase() : null;
-                if (!fb) {
-                    // Fallback Offline
-                    const localData = localStorage.getItem('studyTrackerData');
-                    if (localData) setEntries(JSON.parse(localData));
-                    setIsLoggedIn(true);
-                    return;
+                const lastUser = localStorage.getItem('studyTracker_LastUser');
+                if (lastUser) {
+                    setUsername(lastUser);
                 }
-
-                setFirebase(fb);
-
-                const performAuth = async () => {
-                    try {
-                        if (fb.initialAuthToken) {
-                            await fb.signInWithCustomToken(fb.auth, fb.initialAuthToken);
-                        } else {
-                            await fb.signInAnonymously(fb.auth);
-                        }
-                    } catch (err) {
-                        console.error("Auth Failed", err);
-                        setStatusMsg("Auth Error");
-                    }
-                };
-
-                performAuth();
-
-                const unsubscribe = fb.onAuthStateChanged(fb.auth, (u) => {
-                    setUser(u);
-                });
-                return () => unsubscribe();
             }, []);
 
-            // 2. Sync Logic (Read)
-            useEffect(() => {
-                if (!firebase || !user || !username) return;
-
-                setDbLoading(true);
-                const { db, appId, doc, onSnapshot } = firebase;
-                
-                // Percorso pubblico per username
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'trackers', username.toLowerCase().trim());
-
-                const unsubscribe = onSnapshot(docRef, (docSnap) => {
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        setEntries(data.entries || []);
-                        setTotalGoal(Number(data.totalGoal) || 100);
-                        setTotalExercisesGoal(Number(data.totalExercisesGoal) || 50);
-                    }
-                    setDbLoading(false);
-                    setIsLoggedIn(true);
-                }, (error) => {
-                    console.error("Sync Error:", error);
-                    setDbLoading(false);
-                    // Se fallisce, lasciamo l'utente lavorare ma avvisiamo
-                    if (error.code === 'permission-denied') {
-                        setStatusMsg("Permessi negati (Riprova)");
+            // Funzione per caricare i dati specifici dell'utente
+            const loadUserData = (user) => {
+                try {
+                    const data = localStorage.getItem(`studyData_${user}`);
+                    if (data) {
+                        const parsed = JSON.parse(data);
+                        setEntries(parsed.entries || []);
+                        setTotalGoal(Number(parsed.totalGoal) || 100);
+                        setTotalExercisesGoal(Number(parsed.totalExercisesGoal) || 50);
                     } else {
-                        setStatusMsg("Offline");
+                        // Nuovi dati default
+                        setEntries([
+                            { id: '1', date: '2023-10-20', chapters: 5, exercises: 10, hours: 2, isGoal: false },
+                            { id: '2', date: '2023-10-21', chapters: 8, exercises: 2, hours: 3, isGoal: false },
+                        ]);
+                        setTotalGoal(100);
+                        setTotalExercisesGoal(50);
                     }
-                    setIsLoggedIn(true); // Permetti comunque di usare l'app
-                });
-
-                return () => unsubscribe();
-            }, [firebase, user, username]);
-
-            // 3. Save Logic (Write with Debounce)
-            const saveTimeoutRef = useRef(null);
-            
-            useEffect(() => {
-                if (!isLoggedIn || !firebase || !username) {
-                    localStorage.setItem('studyTrackerData', JSON.stringify(entries));
-                    return;
+                } catch (e) {
+                    console.error("Errore caricamento", e);
                 }
+            };
 
-                if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-                setStatusMsg("Salvataggio...");
-                
-                saveTimeoutRef.current = setTimeout(async () => {
-                    try {
-                        const { db, appId, doc, setDoc } = firebase;
-                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'trackers', username.toLowerCase().trim());
-                        
-                        await setDoc(docRef, {
-                            entries,
-                            totalGoal,
-                            totalExercisesGoal,
-                            lastUpdated: new Date().toISOString()
-                        });
-                        setStatusMsg("Salvato nel cloud");
-                        setTimeout(() => setStatusMsg(""), 2000);
-                    } catch (e) {
-                        console.error("Save Error:", e);
-                        setStatusMsg("Errore salvataggio");
-                    }
-                }, 1000);
+            // Funzione per salvare i dati
+            const saveUserData = () => {
+                if (!username) return;
+                const dataToSave = {
+                    entries,
+                    totalGoal,
+                    totalExercisesGoal
+                };
+                localStorage.setItem(`studyData_${username}`, JSON.stringify(dataToSave));
+            };
 
-            }, [entries, totalGoal, totalExercisesGoal, isLoggedIn, firebase, username]);
-
-
-            // --- ACTIONS ---
+            // Salva ogni volta che i dati cambiano
+            useEffect(() => {
+                if (isLoggedIn) saveUserData();
+            }, [entries, totalGoal, totalExercisesGoal]);
 
             const handleLogin = () => {
                 if (username.trim().length < 3) {
-                    alert("Il nome utente deve avere almeno 3 caratteri.");
+                    alert("Inserisci un nome di almeno 3 lettere");
                     return;
                 }
-                localStorage.setItem('studyTrackerUsername', username);
-                if (!firebase) setIsLoggedIn(true);
+                const cleanUser = username.trim();
+                localStorage.setItem('studyTracker_LastUser', cleanUser);
+                loadUserData(cleanUser);
+                setIsLoggedIn(true);
             };
 
             const handleLogout = () => {
-                setUsername('');
+                saveUserData(); // Salva un'ultima volta per sicurezza
                 setIsLoggedIn(false);
-                setEntries([]);
-                localStorage.removeItem('studyTrackerUsername');
+                setUsername('');
+                localStorage.removeItem('studyTracker_LastUser');
             };
 
-            const openModal = (isGoal) => {
-                setIsGoalEntry(isGoal);
-                setNewEntryDate(new Date().toISOString().split('T')[0]); // IMPORTO: Default su Oggi!
-                setIsAddModalOpen(true);
-            };
-
+            // --- CORE LOGIC ---
             const addEntry = (dateStr, isGoal = false) => {
                 if (entries.find(e => e.date === dateStr && e.isGoal === isGoal)) {
-                    // AVVISO ESPLICITO per entrambi i casi
-                    alert(isGoal ? "Esiste già un obiettivo per questa data." : "Esiste già una voce per questa data.");
+                    if (!isGoal) alert("Esiste già una voce per questa data.");
                     return;
                 }
                 setEntries(prev => [...prev, { id: generateId(), date: dateStr, chapters: 0, exercises: 0, hours: 0, isGoal: isGoal }]
                     .sort((a, b) => new Date(b.date) - new Date(a.date)));
                 setIsAddModalOpen(false);
                 setNewEntryDate('');
-                setIsGoalEntry(false);
             };
 
             const updateEntry = (id, field, value) => {
@@ -284,24 +171,25 @@
                 ));
             };
 
-            const deleteEntry = (id) => {
-                setEntries(prev => prev.filter(e => e.id !== id));
+            const deleteEntry = (id) => setEntries(prev => prev.filter(e => e.id !== id));
+
+            const openModal = (isGoal) => {
+                setIsGoalEntry(isGoal);
+                setNewEntryDate(new Date().toISOString().split('T')[0]);
+                setIsAddModalOpen(true);
             };
 
-            // --- CALCS ---
-
+            // --- STATS ---
             const validEntries = useMemo(() => entries.filter(e => !e.isGoal), [entries]);
 
             const chartData = useMemo(() => {
                 let sortedData = [...validEntries].sort((a, b) => new Date(a.date) - new Date(b.date));
                 if (sortedData.length === 0) return [];
-
                 if (!showOffDays) return sortedData.map(item => ({ ...item, total: item.chapters + item.exercises, displayDate: formatDate(item.date) }));
 
                 const filledData = [];
                 let currentDate = new Date(sortedData[0].date);
                 const lastDate = new Date(sortedData[sortedData.length - 1].date);
-
                 let safety = 0;
                 while (currentDate <= lastDate && safety < 3650) {
                     const dateStr = currentDate.toISOString().split('T')[0];
@@ -317,9 +205,10 @@
             }, [validEntries, showOffDays]);
 
             const stats = useMemo(() => {
-                const totalHours = validEntries.reduce((acc, curr) => acc + curr.hours, 0);
-                const totalPages = validEntries.reduce((acc, curr) => acc + curr.chapters, 0);
-                const totalExercises = validEntries.reduce((acc, curr) => acc + curr.exercises, 0);
+                // Use Number() || 0 to prevent NaNs from corrupted data
+                const totalHours = validEntries.reduce((acc, curr) => acc + (Number(curr.hours) || 0), 0);
+                const totalPages = validEntries.reduce((acc, curr) => acc + (Number(curr.chapters) || 0), 0);
+                const totalExercises = validEntries.reduce((acc, curr) => acc + (Number(curr.exercises) || 0), 0);
                 const speed = totalHours > 0 ? totalPages / totalHours : 0;
                 const exSpeed = totalHours > 0 ? totalExercises / totalHours : 0;
                 
@@ -355,7 +244,6 @@
             }, [totalGoal, totalExercisesGoal, stats]);
 
             // --- COMPONENTS ---
-
             const StatCard = ({ title, value, sub, icon: IconComp, color }) => (
                 <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
                     <div className="flex justify-between items-start mb-2">
@@ -367,7 +255,7 @@
             );
 
             const Chart = ({ data, dataKey, color, title }) => {
-                if (!LineChart) return <div className="bg-slate-800 p-4 h-80 rounded-xl flex items-center justify-center text-slate-500">Caricamento Grafico...</div>;
+                if (!window.Recharts) return <div className="bg-slate-800 p-4 h-80 rounded-xl flex items-center justify-center text-slate-500">Caricamento...</div>;
                 return (
                     <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 h-80 flex flex-col">
                         <h3 className="text-slate-300 font-medium mb-4 flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{backgroundColor: color}}></span>{title}</h3>
@@ -386,69 +274,43 @@
                 );
             };
 
-            // --- LOGIN SCREEN ---
+            // --- RENDER LOGIN ---
             if (!isLoggedIn) {
                 return (
-                    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+                    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans text-white">
                         <div className="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl max-w-md w-full text-center">
                             <div className="bg-indigo-600 w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-indigo-500/30">
                                 <Icons.User className="w-8 h-8 text-white" />
                             </div>
-                            <h1 className="text-3xl font-bold text-white mb-2">Benvenuto</h1>
-                            <p className="text-slate-400 mb-8">Inserisci un nome utente per sincronizzare i tuoi progressi su tutti i dispositivi.</p>
-                            
-                            <input 
-                                type="text" 
-                                placeholder="Es. MarioRossi" 
-                                className="w-full bg-slate-950 border border-slate-700 p-4 rounded-xl text-white mb-4 focus:border-indigo-500 outline-none text-center text-lg"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                            />
-                            
-                            <button 
-                                onClick={handleLogin}
-                                disabled={dbLoading}
-                                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                                {dbLoading ? <div className="loader"></div> : "Entra e Sincronizza"}
-                            </button>
-                            
-                            <p className="text-xs text-slate-600 mt-6">
-                                Nota: Usa un nome unico. Chiunque conosca questo nome potrà vedere questi dati.
-                            </p>
+                            <h1 className="text-3xl font-bold mb-2">Benvenuto</h1>
+                            <p className="text-slate-400 mb-8">Inserisci il tuo nome per accedere al tuo profilo locale.</p>
+                            <input type="text" placeholder="Il tuo nome (es. Marco)" className="w-full bg-slate-950 border border-slate-700 p-4 rounded-xl text-white mb-4 focus:border-indigo-500 outline-none text-center text-lg" value={username} onChange={(e) => setUsername(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+                            <button onClick={handleLogin} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-bold text-lg transition-all">Accedi</button>
+                            <p className="text-xs text-slate-600 mt-6">I dati sono salvati su questo dispositivo per questo specifico nome utente.</p>
                         </div>
                     </div>
                 );
             }
 
-            // --- MAIN APP ---
+            // --- RENDER APP ---
             return (
-                <div className="min-h-screen bg-slate-950 text-slate-200 pb-20">
+                <div className="min-h-screen bg-slate-950 text-slate-200 pb-20 font-sans">
                     <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-20 shadow-md">
                         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="bg-indigo-600 p-2 rounded-lg"><Icons.TrendingUp className="w-5 h-5 text-white" /></div>
                                 <div className="hidden sm:block">
                                     <h1 className="font-bold text-xl text-white leading-none">Study<span className="text-indigo-400">Flow</span></h1>
-                                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                        {username}
-                                        {statusMsg && <span className="text-indigo-400 ml-2">• {statusMsg}</span>}
-                                    </div>
+                                    <div className="flex items-center gap-1 text-xs text-slate-500"><span className="w-2 h-2 rounded-full bg-green-500"></span>{username}</div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <nav className="flex bg-slate-800 p-1 rounded-lg">
                                     {['tracker', 'analytics', 'prediction'].map(v => (
-                                        <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize ${view === v ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
-                                            {v}
-                                        </button>
+                                        <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize ${view === v ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}>{v}</button>
                                     ))}
                                 </nav>
-                                <button onClick={handleLogout} className="p-2 bg-slate-800 hover:bg-red-900/30 hover:text-red-400 rounded-lg text-slate-400 transition-colors" title="Esci">
-                                    <Icons.LogOut className="w-5 h-5" />
-                                </button>
+                                <button onClick={handleLogout} className="p-2 bg-slate-800 hover:bg-red-900/30 hover:text-red-400 rounded-lg text-slate-400 transition-colors"><Icons.LogOut className="w-5 h-5" /></button>
                             </div>
                         </div>
                     </header>
